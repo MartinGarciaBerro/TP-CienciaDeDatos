@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.duckdb
+*.parquet
+*.csv
+target/
+dbt_packages/
+logs/

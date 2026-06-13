@@ -1,0 +1,5 @@
+version: 2
+
+models:
+  - name: bronze_drugresponse
+    description: "Capa bronze: Datos sin estandarizar ni tratar"

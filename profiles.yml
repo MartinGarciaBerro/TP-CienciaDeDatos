@@ -1,0 +1,7 @@
+tpo_data:
+  outputs:
+    dev:
+      type: duckdb
+      path: TPO_DATA.duckdb
+      threads: 1
+  target: dev

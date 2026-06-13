@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: mart_data_quality_drugresponse
+    description: "Tabla de control con metricas de calidad para drug_response."
+    columns:
+      - name: table_name
+        tests:
+          - not_null
+
+      - name: quality_dimension
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["completitud", "unicidad", "validez"]
+
+      - name: quality_score_pct
+        tests:
+          - not_null
+
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Cumple", "No cumple"]
+
+  - name: mart_BI_drugresponse
+    description: "Capa Mart: Datos con valor agregado para el analisis/tableros"
+    columns:
+      - name: nivel_efectividad_droga
+        description: "Clasificacion del AUC para ver efectividad"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Alta Efectividad", "Moderada", "Baja Efectividad"]
+
+  - name: mart_ML_drugresponse
+    description: "Capa Mart: Datos optimizados con metricas para ML."
+    columns:
+      - name: is_public_binary
+        description: "Flag binario. 1 si es publico, 0 si no"
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+
+      - name: dose_amplitude
+        description: "Diferencia entre la concentracion maxima y minima."
+        tests:
+          - not_null

@@ -1,0 +1,4 @@
+{
+  "dbt.dbtPythonPathOverride": "C:\\Users\\juan\\Desktop\\TPO-DBT\\venv\\Scripts\\python.exe",
+  "sqltools.useNodeRuntime": true
+}

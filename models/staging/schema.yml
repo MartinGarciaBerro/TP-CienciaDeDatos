@@ -1,0 +1,44 @@
+version: 2
+
+models:
+  - name: stg_drugresponse
+    description: "Capa Silver: Datos estandarizados y limpios."
+    columns:
+      - name: drug_id
+        tests:
+          - not_null
+
+      - name: cell_line_id
+        description: "Antes COSMIC_ID."
+        tests:
+          - not_null
+
+      - name: curve_id
+        description: "Antes NLME_CURVE_ID. Debe ser unico y no nulo."
+        tests:
+          - not_null
+          - unique
+
+      - name: ln_ic50
+        tests:
+          - not_null
+
+      - name: auc_value
+        description: "Antes AUC."
+        tests:
+          - not_null
+
+      - name: min_concentration
+        description: "Antes MIN_CONC."
+        tests:
+          - not_null
+
+      - name: max_concentration
+        description: "Antes MAX_CONC."
+        tests:
+          - not_null
+
+      - name: rmse_score
+        description: "Antes RMSE."
+        tests:
+          - not_null
