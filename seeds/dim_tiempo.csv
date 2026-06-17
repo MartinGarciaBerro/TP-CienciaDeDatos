@@ -1,0 +1,4 @@
+periodo_id,drug_id_min,drug_id_max,anio_screening,fase_screening,descripcion_fase,screening_site
+1,1003,1199,2012,1,"Fase I: Drogas establecidas y aprobadas, primera oleada GDSC2","SANGER"
+2,1200,1799,2015,2,"Fase II: Inhibidores selectivos y drogas en investigación clínica","SANGER"
+3,1800,2499,2018,3,"Fase III: Compuestos experimentales y nuevas dianas terapéuticas","SANGER"
