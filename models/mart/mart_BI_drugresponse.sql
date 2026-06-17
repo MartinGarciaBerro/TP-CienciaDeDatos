@@ -7,172 +7,125 @@
     mart_BI_drugresponse — Capa Gold / Mart
     =========================================
     Modelo estrella para consumo en dashboards de BI.
+    Construido únicamente con el dataset GDSC2.
 
-    JOINS realizados:
-      1. stg_drugresponse  ← tabla de hechos principal
-      2. stg_compounds     ← dimensión droga (DRUG_ID)
-      3. stg_cell_lines    ← dimensión línea celular (COSMIC_ID / cell_line_id)
-      4. dim_tiempo (seed) ← dimensión temporal derivada del DRUG_ID
+    JOINs realizados:
+      1. stg_drugresponse (hechos) + dim_droga  → por drug_id
+      2. stg_drugresponse (hechos) + dim_cancer → por cancer_type
+      3. stg_drugresponse (hechos) + dim_tiempo → por drug_id BETWEEN min AND max
 
-    DIMENSIONES disponibles para filtros en el tablero:
-      - Temporal:   anio_screening, fase_screening
-      - Terapéutica: drug_pathway_detail, screening_site
-      - Oncológica:  cancer_type, tissue_type_broad, tissue_type_specific
-      - Celular:     growth_properties, msi_status
-
-    Granularidad de agregación:
-      cancer_type + tissue_type_broad + drug_pathway_detail + drug_id + fase_screening
+    Dimensiones para filtros en el tablero:
+      - Temporal:     anio_screening, fase_screening
+      - Terapéutica:  pathway_name, drug_name
+      - Oncológica:   cancer_type, cancer_group
+      - Experimental: company_id
 */
 
-WITH facts AS (
+WITH hechos AS (
     SELECT * FROM {{ ref('stg_drugresponse') }}
 ),
 
 dim_droga AS (
-    SELECT * FROM {{ ref('stg_compounds') }}
+    SELECT * FROM {{ ref('dim_droga') }}
 ),
 
-dim_celula AS (
-    SELECT * FROM {{ ref('stg_cell_lines') }}
+dim_cancer AS (
+    SELECT * FROM {{ ref('dim_cancer') }}
 ),
 
 dim_tiempo AS (
     SELECT * FROM {{ ref('dim_tiempo') }}
 ),
 
--- ──────────────────────────────────────────────
--- JOIN 1: hechos + dimensión droga
--- ──────────────────────────────────────────────
-enriched_with_drug AS (
+-- ── JOIN 1: hechos + dimensión droga ──────────────────────────────────────
+con_droga AS (
     SELECT
-        f.curve_id,
-        f.drug_id,
-        f.cell_line_id,
-        f.cancer_type,
-        f.biological_pathway,
-        f.ln_ic50,
-        f.auc_value,
-        f.min_concentration,
-        f.max_concentration,
-        f.rmse_score,
-        f.z_score,
+        h.curve_id,
+        h.drug_id,
+        h.cell_line_id,
+        h.cancer_type,
+        h.ln_ic50,
+        h.auc_value,
+        h.min_concentration,
+        h.max_concentration,
+        h.rmse_score,
+        h.z_score,
 
-        -- Campos enriquecidos desde dim_droga
         d.drug_name,
-        d.drug_target_detail,
-        d.drug_pathway_detail,
-        d.screening_site,
-        d.drug_synonyms
+        d.pathway_name,
+        d.putative_target,
+        d.company_id
 
-    FROM facts f
-    LEFT JOIN dim_droga d
-        ON f.drug_id = d.drug_id
+    FROM hechos h
+    LEFT JOIN dim_droga d ON h.drug_id = d.drug_id
 ),
 
--- ──────────────────────────────────────────────
--- JOIN 2: + dimensión línea celular
--- ──────────────────────────────────────────────
-enriched_with_cell AS (
+-- ── JOIN 2: + dimensión cáncer ────────────────────────────────────────────
+con_cancer AS (
     SELECT
         e.*,
-        c.tissue_type_broad,
-        c.tissue_type_specific,
-        c.growth_properties,
-        c.msi_status,
-        c.has_wes,
-        c.has_cna,
-        c.has_gene_expression,
-        c.has_methylation
+        c.cancer_group
 
-    FROM enriched_with_drug e
-    LEFT JOIN dim_celula c
-        ON e.cell_line_id = c.cosmic_id
+    FROM con_droga e
+    LEFT JOIN dim_cancer c ON e.cancer_type = c.cancer_type
 ),
 
--- ──────────────────────────────────────────────
--- JOIN 3: + dimensión temporal
--- Los DRUG_IDs en GDSC2 son asignados secuencialmente según
--- el orden de incorporación al screening. Esto permite derivar
--- la fase temporal de cada experimento.
--- Referencia: Iorio et al. (2016), Yang et al. (2013)
--- ──────────────────────────────────────────────
-enriched_full AS (
+-- ── JOIN 3: + dimensión temporal ──────────────────────────────────────────
+con_tiempo AS (
     SELECT
         e.*,
-        t.periodo_id,
         t.anio_screening,
         t.fase_screening,
         t.descripcion_fase
 
-    FROM enriched_with_cell e
-    LEFT JOIN dim_tiempo t
-        ON e.drug_id BETWEEN t.drug_id_min AND t.drug_id_max
+    FROM con_cancer e
+    LEFT JOIN dim_tiempo t ON e.drug_id BETWEEN t.drug_id_min AND t.drug_id_max
 ),
 
--- ──────────────────────────────────────────────
--- AGREGACIÓN para BI
--- Granularidad: cancer_type + tissue_type + pathway + drug + fase temporal
--- ──────────────────────────────────────────────
-business_aggregations AS (
+-- ── AGREGACIÓN ────────────────────────────────────────────────────────────
+agregado AS (
     SELECT
         -- DIMENSIÓN TEMPORAL
         anio_screening,
         fase_screening,
         descripcion_fase,
 
-        -- DIMENSIÓN TERAPÉUTICA / DROGA
+        -- DIMENSIÓN TERAPÉUTICA
         drug_id,
         drug_name,
-        drug_pathway_detail                         AS via_biologica,
-        screening_site                              AS sitio_screening,
+        pathway_name,
+        putative_target,
 
-        -- DIMENSIÓN ONCOLÓGICA / TEJIDO
+        -- DIMENSIÓN ONCOLÓGICA
         cancer_type,
-        tissue_type_broad                           AS tejido_origen,
-        tissue_type_specific                        AS tejido_especifico,
+        cancer_group,
 
-        -- DIMENSIÓN CELULAR / BIOLÓGICA
-        growth_properties                           AS tipo_crecimiento_celular,
-        msi_status                                  AS estado_msi,
+        -- DIMENSIÓN EXPERIMENTAL
+        company_id,
 
-        -- MÉTRICAS AGREGADAS (hechos)
-        COUNT(curve_id)                             AS total_experimentos,
-        ROUND(AVG(auc_value), 4)                    AS efectividad_promedio_auc,
-        ROUND(AVG(ln_ic50), 4)                      AS concentracion_promedio_ic50,
-        ROUND(AVG(z_score), 4)                      AS z_score_promedio,
-        ROUND(STDDEV(auc_value), 4)                 AS variabilidad_auc,
+        -- MÉTRICAS
+        COUNT(curve_id)                         AS total_experimentos,
+        ROUND(AVG(auc_value), 4)                AS efectividad_promedio_auc,
+        ROUND(AVG(ln_ic50), 4)                  AS concentracion_promedio_ic50,
+        ROUND(AVG(z_score), 4)                  AS z_score_promedio,
+        ROUND(STDDEV(auc_value), 4)             AS variabilidad_auc,
+        MIN(min_concentration)                   AS dosis_minima_historica,
+        MAX(max_concentration)                   AS dosis_maxima_historica,
 
-        MIN(min_concentration)                      AS dosis_minima_historica,
-        MAX(max_concentration)                      AS dosis_maxima_historica,
-
-        -- Porcentaje de experimentos con datos ómicos disponibles
-        ROUND(100.0 * AVG(has_wes), 1)              AS pct_con_wes,
-        ROUND(100.0 * AVG(has_gene_expression), 1)  AS pct_con_gene_expression,
-
-        -- CLASIFICACIÓN SEMÁNTICA
-        -- Se aplica ROUND al valor antes de clasificar para evitar
-        -- inconsistencias de redondeo (bug conocido en versión anterior)
+        -- CLASIFICACIÓN con ROUND antes del CASE para evitar bug de redondeo
         CASE
             WHEN ROUND(AVG(auc_value), 4) >= 0.85 THEN 'Alta Efectividad'
             WHEN ROUND(AVG(auc_value), 4) >= 0.50 THEN 'Moderada'
             ELSE 'Baja Efectividad'
-        END                                         AS nivel_efectividad_droga
+        END                                     AS nivel_efectividad_droga
 
-    FROM enriched_full
+    FROM con_tiempo
     GROUP BY
-        anio_screening,
-        fase_screening,
-        descripcion_fase,
-        drug_id,
-        drug_name,
-        drug_pathway_detail,
-        screening_site,
-        cancer_type,
-        tissue_type_broad,
-        tissue_type_specific,
-        growth_properties,
-        msi_status
+        anio_screening, fase_screening, descripcion_fase,
+        drug_id, drug_name, pathway_name, putative_target,
+        cancer_type, cancer_group,
+        company_id
 )
 
-SELECT * FROM business_aggregations
+SELECT * FROM agregado
 ORDER BY anio_screening, drug_id, cancer_type

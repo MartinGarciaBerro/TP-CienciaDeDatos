@@ -1,0 +1,98 @@
+version: 2
+
+models:
+  - name: dim_droga
+    description: "Dimensión de drogas derivada del GDSC2. Una fila por droga única."
+    columns:
+      - name: drug_id
+        tests:
+          - not_null
+          - unique
+      - name: drug_name
+        tests:
+          - not_null
+      - name: pathway_name
+        tests:
+          - not_null
+
+  - name: dim_cancer
+    description: "Dimensión de tipos de cáncer derivada del GDSC2. Una fila por tipo único."
+    columns:
+      - name: cancer_type
+        tests:
+          - not_null
+          - unique
+      - name: cancer_group
+        tests:
+          - not_null
+
+  - name: mart_BI_drugresponse
+    description: >
+      Capa Gold / Mart para BI. Modelo estrella con 3 JOINs usando solo el dataset GDSC2:
+      stg_drugresponse (hechos) + dim_droga + dim_cancer + dim_tiempo (seed).
+    columns:
+      - name: anio_screening
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [2012, 2015, 2018]
+      - name: fase_screening
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+      - name: nivel_efectividad_droga
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Alta Efectividad", "Moderada", "Baja Efectividad"]
+      - name: total_experimentos
+        tests:
+          - not_null
+      - name: efectividad_promedio_auc
+        tests:
+          - not_null
+      - name: cancer_type
+        tests:
+          - not_null
+      - name: pathway_name
+        tests:
+          - not_null
+
+  - name: mart_ML_drugresponse
+    description: "Capa Gold / Mart: Features optimizadas para entrenamiento de modelos de ML."
+    columns:
+      - name: is_public_binary
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+      - name: dose_amplitude
+        tests:
+          - not_null
+
+  - name: mart_data_quality_drugresponse
+    description: "Tabla de control con métricas de calidad para drug_response."
+    columns:
+      - name: table_name
+        tests:
+          - not_null
+      - name: quality_dimension
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["completitud", "unicidad", "validez"]
+      - name: quality_score_pct
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Cumple", "No cumple"]
