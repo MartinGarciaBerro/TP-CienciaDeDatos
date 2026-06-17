@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: capa_raw
+    schema: main
+    tables:
+      - name: drug_response
+        meta:
+          external_location: "raw_drugresponse.parquet"

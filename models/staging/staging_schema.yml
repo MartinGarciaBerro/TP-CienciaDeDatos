@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: stg_drugresponse
+    description: "Capa Silver: Datos de respuesta a drogas estandarizados y limpios."
+    columns:
+      - name: curve_id
+        description: "Identificador único de curva dosis-respuesta (antes NLME_CURVE_ID)."
+        tests:
+          - not_null
+          - unique
+      - name: drug_id
+        tests:
+          - not_null
+      - name: cell_line_id
+        description: "Identificador de línea celular (antes COSMIC_ID)."
+        tests:
+          - not_null
+      - name: ln_ic50
+        tests:
+          - not_null
+      - name: auc_value
+        description: "Área bajo la curva dosis-respuesta (antes AUC). Rango esperado: [0, 1]."
+        tests:
+          - not_null
+      - name: min_concentration
+        description: "Concentración mínima usada (antes MIN_CONC)."
+        tests:
+          - not_null
+      - name: max_concentration
+        description: "Concentración máxima usada (antes MAX_CONC)."
+        tests:
+          - not_null
+      - name: rmse_score
+        description: "Error cuadrático medio del ajuste de curva (antes RMSE)."
+        tests:
+          - not_null
