@@ -1,0 +1,88 @@
+version: 2
+
+models:
+  - name: mart_BI_drugresponse
+    description: >
+      Capa Gold / Mart para BI. Modelo estrella con 3 JOINs:
+      stg_drugresponse (hechos) + stg_compounds (dim droga) +
+      stg_cell_lines (dim célula) + dim_tiempo (seed temporal).
+      Granularidad: cancer_type + tejido + via_biologica + drug_id + fase_screening.
+    columns:
+      - name: anio_screening
+        description: "Año aproximado de incorporación de la droga al screening GDSC."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [2012, 2015, 2018]
+
+      - name: fase_screening
+        description: "Fase del programa de screening (1, 2 o 3)."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3]
+
+      - name: nivel_efectividad_droga
+        description: >
+          Clasificación semántica basada en efectividad_promedio_auc (redondeado a 4 decimales):
+          >= 0.85 → Alta Efectividad, >= 0.50 → Moderada, < 0.50 → Baja Efectividad.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Alta Efectividad", "Moderada", "Baja Efectividad"]
+
+      - name: total_experimentos
+        tests:
+          - not_null
+
+      - name: efectividad_promedio_auc
+        tests:
+          - not_null
+
+      - name: via_biologica
+        tests:
+          - not_null
+
+      - name: tejido_origen
+        tests:
+          - not_null
+
+  - name: mart_ML_drugresponse
+    description: "Capa Gold / Mart: Features optimizadas para entrenamiento de modelos de ML."
+    columns:
+      - name: is_public_binary
+        description: "Flag binario: 1 si el experimento es público, 0 si no."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [0, 1]
+      - name: dose_amplitude
+        description: "Amplitud del rango de concentraciones (max - min)."
+        tests:
+          - not_null
+
+  - name: mart_data_quality_drugresponse
+    description: "Tabla de control con métricas de calidad para drug_response."
+    columns:
+      - name: table_name
+        tests:
+          - not_null
+      - name: quality_dimension
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["completitud", "unicidad", "validez"]
+      - name: quality_score_pct
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Cumple", "No cumple"]
