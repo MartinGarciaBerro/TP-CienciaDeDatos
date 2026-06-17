@@ -7,3 +7,11 @@ sources:
       - name: drug_response
         meta:
           external_location: "raw_drugresponse.parquet"
+
+      - name: compounds_annotation
+        meta:
+          external_location: "raw_compounds.parquet"
+
+      - name: cell_lines_details
+        meta:
+          external_location: "raw_cell_lines.parquet"
